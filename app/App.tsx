@@ -5,7 +5,7 @@ import { JoinScreen } from "./src/screens/JoinScreen";
 import { TableScreen } from "./src/screens/TableScreen";
 import { createSocket } from "./src/socket";
 import { getOrCreateDeviceId, getSavedProfile, getSavedServerUrl, saveProfile, saveServerUrl } from "./src/storage";
-import { ActionPayload, HandResultPayload, PrivateHandPayload, PublicState } from "./src/types";
+import { ActionPayload, ChatMessagePayload, HandResultPayload, PrivateHandPayload, PublicState } from "./src/types";
 
 export default function App() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -19,6 +19,7 @@ export default function App() {
   const [state, setState] = useState<PublicState | null>(null);
   const [hand, setHand] = useState<PrivateHandPayload | null>(null);
   const [lastResult, setLastResult] = useState<HandResultPayload | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessagePayload[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,6 +59,10 @@ export default function App() {
         if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
         resultTimerRef.current = setTimeout(() => setLastResult(null), 5000);
       });
+      socket.on("chatHistory", (history: ChatMessagePayload[]) => setChatMessages(history));
+      socket.on("chatMessage", (message: ChatMessagePayload) =>
+        setChatMessages((prev) => [...prev, message])
+      );
       socket.on("error", (message: string) => setConnectionError(message));
     },
     [deviceId]
@@ -73,8 +78,12 @@ export default function App() {
     socketRef.current?.emit("action", action);
   }, []);
 
-  const handleStartGame = useCallback(() => {
-    socketRef.current?.emit("startGame");
+  const handleStartGame = useCallback((buyIn?: number) => {
+    socketRef.current?.emit("startGame", { buyIn });
+  }, []);
+
+  const handleSendChat = useCallback((text: string) => {
+    socketRef.current?.emit("chat", { text });
   }, []);
 
   const handleLeave = useCallback(() => {
@@ -85,6 +94,7 @@ export default function App() {
     setState(null);
     setHand(null);
     setLastResult(null);
+    setChatMessages([]);
   }, []);
 
   if (!ready) {
@@ -117,9 +127,11 @@ export default function App() {
         state={state}
         hand={hand}
         lastResult={lastResult}
+        chatMessages={chatMessages}
         onAction={handleAction}
         onStartGame={handleStartGame}
         onLeave={handleLeave}
+        onSendChat={handleSendChat}
       />
       {connectionError && (
         <View style={styles.errorBanner}>

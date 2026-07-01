@@ -61,6 +61,7 @@ export interface PublicState {
   turnDeadline: number | null;
   lastActionLog: string[];
   mySeatIndex: number | null;
+  buyIn: number;
 }
 
 export interface Recommendation {
@@ -91,4 +92,15 @@ export interface JoinPayload {
 export interface ActionPayload {
   type: ActionType;
   amount?: number;
+}
+
+export interface StartGamePayload {
+  buyIn?: number;
+}
+
+export interface ChatMessagePayload {
+  seatIndex: number;
+  nickname: string;
+  text: string;
+  ts: number;
 }

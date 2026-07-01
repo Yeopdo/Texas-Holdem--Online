@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { GameRoom } from "./gameEngine";
-import { ActionPayload, JoinPayload } from "./types";
+import { ActionPayload, JoinPayload, StartGamePayload } from "./types";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
@@ -34,21 +34,35 @@ room.onStateChange = broadcastState;
 room.onHandResult = (result) => {
   io.emit("handResult", result);
 };
+room.onChatMessage = (message) => {
+  io.emit("chatMessage", message);
+};
 
 io.on("connection", (socket: Socket) => {
   socket.on("join", (payload: JoinPayload) => {
     try {
       room.join(payload.deviceId, payload.nickname, payload.photoDataUri, socket.id);
       socketToDevice.set(socket.id, payload.deviceId);
+      socket.emit("chatHistory", room.getChatHistory());
       broadcastState();
     } catch (err) {
       socket.emit("error", (err as Error).message);
     }
   });
 
-  socket.on("startGame", () => {
+  socket.on("startGame", (payload?: StartGamePayload) => {
     try {
-      room.startGame();
+      room.startGame(payload?.buyIn);
+    } catch (err) {
+      socket.emit("error", (err as Error).message);
+    }
+  });
+
+  socket.on("chat", (payload: { text: string }) => {
+    const deviceId = socketToDevice.get(socket.id);
+    if (!deviceId) return;
+    try {
+      room.addChatMessage(deviceId, payload.text ?? "");
     } catch (err) {
       socket.emit("error", (err as Error).message);
     }

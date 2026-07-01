@@ -4,6 +4,7 @@ import { buildRecommendation } from "./handEvaluator";
 import {
   ActionPayload,
   BettingRound,
+  ChatMessagePayload,
   HandResultPayload,
   PrivateHandPayload,
   PublicSeatView,
@@ -14,11 +15,15 @@ import {
 } from "./types";
 
 const MAX_SEATS = 9;
-const BUY_IN = 1000;
+const DEFAULT_BUY_IN = 1000;
+const MIN_BUY_IN = 100;
+const MAX_BUY_IN = 1000000;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const TURN_SECONDS = 30;
 const NEXT_HAND_DELAY_MS = 4000;
+const MAX_CHAT_HISTORY = 50;
+const MAX_CHAT_LENGTH = 300;
 
 function computeSidePots(seats: Seat[]): SidePot[] {
   const contributors = seats.filter((s) => s.totalHandBet > 0);
@@ -52,9 +57,12 @@ export class GameRoom {
   private turnDeadline: number | null = null;
   private nextHandTimer: ReturnType<typeof setTimeout> | null = null;
   private deck: string[] = [];
+  private buyIn = DEFAULT_BUY_IN;
+  private chatHistory: ChatMessagePayload[] = [];
 
   onStateChange: () => void = () => {};
   onHandResult: (result: HandResultPayload) => void = () => {};
+  onChatMessage: (message: ChatMessagePayload) => void = () => {};
 
   // ---------- membership ----------
 
@@ -79,7 +87,7 @@ export class GameRoom {
       deviceId,
       nickname,
       photoDataUri,
-      chips: BUY_IN,
+      chips: this.buyIn,
       connected: true,
       socketId,
       folded: false,
@@ -128,21 +136,28 @@ export class GameRoom {
     return this.seats.filter((s): s is Seat => !!s && !s.sittingOut);
   }
 
-  private seatedPlayableCount(): number {
-    return this.seats.filter((s): s is Seat => !!s && !s.sittingOut && s.chips > 0).length;
-  }
-
   private connectedPlayableCount(): number {
     return this.seats.filter((s): s is Seat => !!s && !s.sittingOut && s.chips > 0 && s.connected).length;
   }
 
   // ---------- hand lifecycle ----------
 
-  startGame(): void {
+  startGame(buyIn?: number): void {
     if (this.status === "PLAYING") return;
     if (this.connectedPlayableCount() < 2) {
       throw new Error("현재 접속 중인 인원이 2명 이상이어야 시작할 수 있습니다.");
     }
+
+    // Only honor a buy-in choice for a brand new session (nobody has been dealt a
+    // hand yet). Once the table has played, "게임 시작" just resumes with existing stacks.
+    if (this.dealerSeat === null && buyIn !== undefined) {
+      const clamped = Math.round(Math.min(MAX_BUY_IN, Math.max(MIN_BUY_IN, buyIn)));
+      this.buyIn = clamped;
+      for (const seat of this.seats) {
+        if (seat) seat.chips = clamped;
+      }
+    }
+
     this.startHand();
   }
 
@@ -588,6 +603,7 @@ export class GameRoom {
       turnDeadline: this.turnDeadline,
       lastActionLog: this.lastActionLog.slice(-10),
       mySeatIndex: viewerSeat ? viewerSeat.seatIndex : null,
+      buyIn: this.buyIn,
     };
   }
 
@@ -621,5 +637,30 @@ export class GameRoom {
     return this.seats
       .filter((s): s is Seat => !!s)
       .map((s) => ({ deviceId: s.deviceId, socketId: s.socketId }));
+  }
+
+  // ---------- chat ----------
+
+  getChatHistory(): ChatMessagePayload[] {
+    return this.chatHistory;
+  }
+
+  addChatMessage(deviceId: string, text: string): void {
+    const seat = this.seats.find((s) => s && s.deviceId === deviceId) as Seat | undefined;
+    if (!seat) throw new Error("좌석을 찾을 수 없습니다.");
+    const trimmed = text.trim().slice(0, MAX_CHAT_LENGTH);
+    if (!trimmed) return;
+
+    const message: ChatMessagePayload = {
+      seatIndex: seat.seatIndex,
+      nickname: seat.nickname,
+      text: trimmed,
+      ts: Date.now(),
+    };
+    this.chatHistory.push(message);
+    if (this.chatHistory.length > MAX_CHAT_HISTORY) {
+      this.chatHistory.splice(0, this.chatHistory.length - MAX_CHAT_HISTORY);
+    }
+    this.onChatMessage(message);
   }
 }

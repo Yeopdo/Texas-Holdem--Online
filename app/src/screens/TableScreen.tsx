@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ActionBar } from "../components/ActionBar";
+import { ChatPanel } from "../components/ChatPanel";
 import { CommunityCards } from "../components/CommunityCards";
 import { PlayingCard } from "../components/PlayingCard";
 import { RecommendationPanel } from "../components/RecommendationPanel";
 import { Seat } from "../components/Seat";
-import { ActionPayload, HandResultPayload, PrivateHandPayload, PublicState } from "../types";
+import { ActionPayload, ChatMessagePayload, HandResultPayload, PrivateHandPayload, PublicState } from "../types";
 
 const MAX_SEATS = 9;
 const TABLE_W = 320;
@@ -32,18 +33,24 @@ export function TableScreen({
   state,
   hand,
   lastResult,
+  chatMessages,
   onAction,
   onStartGame,
   onLeave,
+  onSendChat,
 }: {
   state: PublicState;
   hand: PrivateHandPayload | null;
   lastResult: HandResultPayload | null;
+  chatMessages: ChatMessagePayload[];
   onAction: (action: ActionPayload) => void;
-  onStartGame: () => void;
+  onStartGame: (buyIn?: number) => void;
   onLeave: () => void;
+  onSendChat: (text: string) => void;
 }) {
   const [now, setNow] = useState(Date.now());
+  const [buyInInput, setBuyInInput] = useState(String(state.buyIn));
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -53,6 +60,7 @@ export function TableScreen({
   const secondsLeft = state.turnDeadline ? Math.max(0, Math.ceil((state.turnDeadline - now) / 1000)) : null;
   const myChips = state.seats.find((s) => s.seatIndex === state.mySeatIndex)?.chips ?? 0;
   const canStart = state.status === "WAITING" && state.seats.length >= 2;
+  const isFreshSession = state.dealerSeat === null;
 
   const winnerNames = useMemo(
     () => lastResult?.winners.map((w) => `${w.nickname} +${w.amount}`).join(", ") ?? "",
@@ -66,9 +74,14 @@ export function TableScreen({
           {state.bettingRound ? ROUND_LABEL[state.bettingRound] ?? state.bettingRound : "대기 중"}
         </Text>
         {secondsLeft !== null && <Text style={styles.timer}>남은 시간 {secondsLeft}s</Text>}
-        <Pressable onPress={onLeave} hitSlop={8}>
-          <Text style={styles.leaveText}>나가기</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable onPress={() => setChatOpen(true)} hitSlop={8}>
+            <Text style={styles.chatButtonText}>채팅{chatMessages.length > 0 ? ` (${chatMessages.length})` : ""}</Text>
+          </Pressable>
+          <Pressable onPress={onLeave} hitSlop={8}>
+            <Text style={styles.leaveText}>나가기</Text>
+          </Pressable>
+        </View>
       </View>
 
       {lastResult && (
@@ -92,9 +105,26 @@ export function TableScreen({
       </View>
 
       {canStart && (
-        <Pressable style={styles.startButton} onPress={onStartGame}>
-          <Text style={styles.startButtonText}>게임 시작</Text>
-        </Pressable>
+        <View style={styles.startRow}>
+          {isFreshSession && (
+            <View style={styles.buyInRow}>
+              <Text style={styles.buyInLabel}>시작 칩</Text>
+              <TextInput
+                style={styles.buyInInput}
+                value={buyInInput}
+                onChangeText={setBuyInInput}
+                keyboardType="number-pad"
+                maxLength={7}
+              />
+            </View>
+          )}
+          <Pressable
+            style={styles.startButton}
+            onPress={() => onStartGame(isFreshSession ? Number(buyInInput) || state.buyIn : undefined)}
+          >
+            <Text style={styles.startButtonText}>{isFreshSession ? "게임 시작" : "게임 계속하기"}</Text>
+          </Pressable>
+        </View>
       )}
 
       <View style={styles.bottomBar}>
@@ -107,6 +137,14 @@ export function TableScreen({
         </View>
         <ActionBar state={state} myChips={myChips} onAction={onAction} />
       </View>
+
+      <ChatPanel
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        messages={chatMessages}
+        onSend={onSendChat}
+        mySeatIndex={state.mySeatIndex}
+      />
     </View>
   );
 }
@@ -122,6 +160,8 @@ const styles = StyleSheet.create({
   },
   roundLabel: { color: "#ffd54f", fontWeight: "800", fontSize: 16 },
   timer: { color: "#fff", fontSize: 13 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 14 },
+  chatButtonText: { color: "#ffd54f", fontSize: 13, fontWeight: "700" },
   leaveText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "600" },
   resultBanner: {
     marginHorizontal: 16,
@@ -180,13 +220,23 @@ const styles = StyleSheet.create({
     top: TABLE_H / 2 - 50,
     alignItems: "center",
   },
+  startRow: { alignItems: "center", marginTop: 8, gap: 8 },
+  buyInRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  buyInLabel: { color: "#fff", fontSize: 13 },
+  buyInInput: {
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    width: 90,
+    textAlign: "center",
+  },
   startButton: {
     alignSelf: "center",
     backgroundColor: "#ffd54f",
     borderRadius: 8,
     paddingHorizontal: 24,
     paddingVertical: 10,
-    marginTop: 8,
   },
   startButtonText: { color: "#1a1a1a", fontWeight: "800" },
   bottomBar: { marginTop: "auto" },
