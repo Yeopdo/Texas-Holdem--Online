@@ -4,6 +4,7 @@ const DEVICE_ID_KEY = "poker.deviceId";
 const NICKNAME_KEY = "poker.nickname";
 const PHOTO_KEY = "poker.photoDataUri";
 const SERVER_URL_KEY = "poker.serverUrl";
+const DEFAULT_SERVER_URL = "https://poker-server-o3d2.onrender.com";
 
 function randomId(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -35,7 +36,7 @@ export async function saveProfile(nickname: string, photoDataUri?: string): Prom
 }
 
 export async function getSavedServerUrl(): Promise<string> {
-  return (await AsyncStorage.getItem(SERVER_URL_KEY)) ?? "";
+  return (await AsyncStorage.getItem(SERVER_URL_KEY)) ?? DEFAULT_SERVER_URL;
 }
 
 export async function saveServerUrl(url: string): Promise<void> {
