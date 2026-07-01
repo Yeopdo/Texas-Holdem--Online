@@ -132,12 +132,16 @@ export class GameRoom {
     return this.seats.filter((s): s is Seat => !!s && !s.sittingOut && s.chips > 0).length;
   }
 
+  private connectedPlayableCount(): number {
+    return this.seats.filter((s): s is Seat => !!s && !s.sittingOut && s.chips > 0 && s.connected).length;
+  }
+
   // ---------- hand lifecycle ----------
 
   startGame(): void {
     if (this.status === "PLAYING") return;
-    if (this.seatedPlayableCount() < 2) {
-      throw new Error("최소 2명이 있어야 시작할 수 있습니다.");
+    if (this.connectedPlayableCount() < 2) {
+      throw new Error("현재 접속 중인 인원이 2명 이상이어야 시작할 수 있습니다.");
     }
     this.startHand();
   }
@@ -524,7 +528,7 @@ export class GameRoom {
   private scheduleNextHand() {
     if (this.nextHandTimer) clearTimeout(this.nextHandTimer);
     this.nextHandTimer = setTimeout(() => {
-      if (this.seatedPlayableCount() >= 2) {
+      if (this.connectedPlayableCount() >= 2) {
         this.startHand();
       } else {
         this.status = "WAITING";

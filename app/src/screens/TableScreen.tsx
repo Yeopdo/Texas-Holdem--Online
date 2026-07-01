@@ -34,12 +34,14 @@ export function TableScreen({
   lastResult,
   onAction,
   onStartGame,
+  onLeave,
 }: {
   state: PublicState;
   hand: PrivateHandPayload | null;
   lastResult: HandResultPayload | null;
   onAction: (action: ActionPayload) => void;
   onStartGame: () => void;
+  onLeave: () => void;
 }) {
   const [now, setNow] = useState(Date.now());
 
@@ -64,6 +66,9 @@ export function TableScreen({
           {state.bettingRound ? ROUND_LABEL[state.bettingRound] ?? state.bettingRound : "대기 중"}
         </Text>
         {secondsLeft !== null && <Text style={styles.timer}>남은 시간 {secondsLeft}s</Text>}
+        <Pressable onPress={onLeave} hitSlop={8}>
+          <Text style={styles.leaveText}>나가기</Text>
+        </Pressable>
       </View>
 
       {lastResult && (
@@ -117,6 +122,7 @@ const styles = StyleSheet.create({
   },
   roundLabel: { color: "#ffd54f", fontWeight: "800", fontSize: 16 },
   timer: { color: "#fff", fontSize: 13 },
+  leaveText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "600" },
   resultBanner: {
     marginHorizontal: 16,
     marginTop: 8,

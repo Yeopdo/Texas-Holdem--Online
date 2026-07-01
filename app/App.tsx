@@ -77,6 +77,16 @@ export default function App() {
     socketRef.current?.emit("startGame");
   }, []);
 
+  const handleLeave = useCallback(() => {
+    socketRef.current?.emit("leave");
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    setJoined(false);
+    setState(null);
+    setHand(null);
+    setLastResult(null);
+  }, []);
+
   if (!ready) {
     return <View style={styles.blank} />;
   }
@@ -109,6 +119,7 @@ export default function App() {
         lastResult={lastResult}
         onAction={handleAction}
         onStartGame={handleStartGame}
+        onLeave={handleLeave}
       />
       {connectionError && (
         <View style={styles.errorBanner}>
