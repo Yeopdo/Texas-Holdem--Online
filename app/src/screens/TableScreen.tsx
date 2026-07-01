@@ -73,7 +73,11 @@ export function TableScreen({
       )}
 
       <View style={styles.tableArea}>
-        <View style={styles.tableOval} />
+        <View style={styles.rail}>
+          <View style={styles.felt}>
+            <View style={styles.feltShine} />
+          </View>
+        </View>
         {state.seats.map((seat) => (
           <Seat key={seat.seatIndex} seat={seat} style={seatPosition(seat.seatIndex)} />
         ))}
@@ -91,8 +95,8 @@ export function TableScreen({
       <View style={styles.bottomBar}>
         <View style={styles.myHandRow}>
           <View style={styles.myCards}>
-            <PlayingCard card={hand?.holeCards[0]} faceDown={!hand} size="lg" />
-            <PlayingCard card={hand?.holeCards[1]} faceDown={!hand} size="lg" />
+            <PlayingCard card={hand?.holeCards[0]} faceDown={!hand} size="lg" delay={0} />
+            <PlayingCard card={hand?.holeCards[1]} faceDown={!hand} size="lg" delay={120} />
           </View>
           <RecommendationPanel recommendation={hand?.recommendation ?? null} />
         </View>
@@ -127,16 +131,41 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 12,
   },
-  tableOval: {
+  rail: {
     position: "absolute",
-    left: (TABLE_W - 250) / 2,
-    top: (TABLE_H - 340) / 2,
-    width: 250,
-    height: 340,
-    borderRadius: 160,
+    left: (TABLE_W - 260) / 2,
+    top: (TABLE_H - 350) / 2,
+    width: 260,
+    height: 350,
+    borderRadius: 165,
+    backgroundColor: "#3e2414",
+    borderWidth: 3,
+    borderColor: "#5c3a20",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  felt: {
+    width: 232,
+    height: 322,
+    borderRadius: 150,
     backgroundColor: "#0f5c34",
-    borderWidth: 6,
+    borderWidth: 2,
     borderColor: "#0a3d22",
+    overflow: "hidden",
+    alignItems: "center",
+  },
+  feltShine: {
+    position: "absolute",
+    top: -60,
+    width: 320,
+    height: 260,
+    borderRadius: 160,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   centerArea: {
     position: "absolute",
