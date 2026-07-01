@@ -37,6 +37,9 @@ room.onHandResult = (result) => {
 room.onChatMessage = (message) => {
   io.emit("chatMessage", message);
 };
+room.onActionAnnounce = (announcement) => {
+  io.emit("actionAnnounce", announcement);
+};
 
 io.on("connection", (socket: Socket) => {
   socket.on("join", (payload: JoinPayload) => {

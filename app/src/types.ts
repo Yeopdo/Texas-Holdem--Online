@@ -86,3 +86,10 @@ export interface ChatMessagePayload {
   text: string;
   ts: number;
 }
+
+export interface ActionAnnouncePayload {
+  seatIndex: number;
+  nickname: string;
+  type: ActionType;
+  amount?: number;
+}

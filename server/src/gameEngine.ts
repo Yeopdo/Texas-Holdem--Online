@@ -2,6 +2,7 @@ import { Hand } from "pokersolver";
 import { makeDeck, shuffle } from "./deck";
 import { buildRecommendation } from "./handEvaluator";
 import {
+  ActionAnnouncePayload,
   ActionPayload,
   BettingRound,
   ChatMessagePayload,
@@ -63,6 +64,7 @@ export class GameRoom {
   onStateChange: () => void = () => {};
   onHandResult: (result: HandResultPayload) => void = () => {};
   onChatMessage: (message: ChatMessagePayload) => void = () => {};
+  onActionAnnounce: (announcement: ActionAnnouncePayload) => void = () => {};
 
   // ---------- membership ----------
 
@@ -129,7 +131,34 @@ export class GameRoom {
     } else {
       this.seats[seat.seatIndex] = null;
     }
+    this.resetRoomIfEmpty();
     this.onStateChange();
+  }
+
+  private freePendingLeaveSeats() {
+    for (let i = 0; i < this.seats.length; i++) {
+      const seat = this.seats[i];
+      if (seat && seat.pendingLeave) this.seats[i] = null;
+    }
+  }
+
+  private resetRoomIfEmpty() {
+    if (!this.seats.every((s) => s === null)) return;
+    this.clearTurnTimer();
+    if (this.nextHandTimer) {
+      clearTimeout(this.nextHandTimer);
+      this.nextHandTimer = null;
+    }
+    this.status = "WAITING";
+    this.communityCards = [];
+    this.bettingRound = null;
+    this.dealerSeat = null;
+    this.currentTurnSeat = null;
+    this.currentBetLevel = 0;
+    this.minRaiseIncrement = BIG_BLIND;
+    this.lastActionLog = [];
+    this.chatHistory = [];
+    this.buyIn = DEFAULT_BUY_IN;
   }
 
   private activeThisHandSeats(): Seat[] {
@@ -171,15 +200,12 @@ export class GameRoom {
     for (const seat of this.seats) {
       if (seat && seat.chips > 0) seat.sittingOut = false;
     }
-    // free seats of players who left mid-hand and busted players with no chips
-    for (let i = 0; i < this.seats.length; i++) {
-      const seat = this.seats[i];
-      if (seat && seat.pendingLeave) this.seats[i] = null;
-    }
+    this.freePendingLeaveSeats();
 
     const playable = this.activeThisHandSeats().filter((s) => s.chips > 0);
     if (playable.length < 2) {
       this.status = "WAITING";
+      this.resetRoomIfEmpty();
       this.onStateChange();
       return;
     }
@@ -296,12 +322,14 @@ export class GameRoom {
         seat.folded = true;
         seat.hasActed = true;
         this.lastActionLog.push(`${seat.nickname} 폴드`);
+        this.onActionAnnounce({ seatIndex: seat.seatIndex, nickname: seat.nickname, type: "fold" });
         break;
       }
       case "check": {
         if (callAmount > 0) throw new Error("콜할 금액이 남아있어 체크할 수 없습니다.");
         seat.hasActed = true;
         this.lastActionLog.push(`${seat.nickname} 체크`);
+        this.onActionAnnounce({ seatIndex: seat.seatIndex, nickname: seat.nickname, type: "check" });
         break;
       }
       case "call": {
@@ -312,6 +340,7 @@ export class GameRoom {
         if (seat.chips === 0) seat.allIn = true;
         seat.hasActed = true;
         this.lastActionLog.push(`${seat.nickname} 콜 (${actual})`);
+        this.onActionAnnounce({ seatIndex: seat.seatIndex, nickname: seat.nickname, type: "call", amount: actual });
         break;
       }
       case "raise": {
@@ -328,6 +357,7 @@ export class GameRoom {
         seat.totalHandBet += delta;
         if (seat.chips === 0) seat.allIn = true;
         this.applyRaiseLevel(seat, raiseTo);
+        this.onActionAnnounce({ seatIndex: seat.seatIndex, nickname: seat.nickname, type: "raise", amount: raiseTo });
         break;
       }
       case "allin": {
@@ -339,6 +369,7 @@ export class GameRoom {
         seat.allIn = true;
         this.applyRaiseLevel(seat, newBet);
         this.lastActionLog.push(`${seat.nickname} 올인 (${newBet})`);
+        this.onActionAnnounce({ seatIndex: seat.seatIndex, nickname: seat.nickname, type: "allin", amount: newBet });
         break;
       }
     }
@@ -515,7 +546,9 @@ export class GameRoom {
     };
 
     this.onHandResult(result);
-    this.scheduleNextHand();
+    this.freePendingLeaveSeats();
+    this.resetRoomIfEmpty();
+    if (this.status !== "WAITING") this.scheduleNextHand();
     this.onStateChange();
   }
 
@@ -536,7 +569,9 @@ export class GameRoom {
     };
 
     this.onHandResult(result);
-    this.scheduleNextHand();
+    this.freePendingLeaveSeats();
+    this.resetRoomIfEmpty();
+    if (this.status !== "WAITING") this.scheduleNextHand();
     this.onStateChange();
   }
 

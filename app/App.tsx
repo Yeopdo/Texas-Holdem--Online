@@ -5,7 +5,8 @@ import { JoinScreen } from "./src/screens/JoinScreen";
 import { TableScreen } from "./src/screens/TableScreen";
 import { createSocket } from "./src/socket";
 import { getOrCreateDeviceId, getSavedProfile, getSavedServerUrl, saveProfile, saveServerUrl } from "./src/storage";
-import { ActionPayload, ChatMessagePayload, HandResultPayload, PrivateHandPayload, PublicState } from "./src/types";
+import { announceAction } from "./src/speech";
+import { ActionAnnouncePayload, ActionPayload, ChatMessagePayload, HandResultPayload, PrivateHandPayload, PublicState } from "./src/types";
 
 export default function App() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export default function App() {
       socket.on("chatMessage", (message: ChatMessagePayload) =>
         setChatMessages((prev) => [...prev, message])
       );
+      socket.on("actionAnnounce", (a: ActionAnnouncePayload) => announceAction(a));
       socket.on("error", (message: string) => setConnectionError(message));
     },
     [deviceId]
