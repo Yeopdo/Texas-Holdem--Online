@@ -3,7 +3,7 @@ services:
     name: poker-server
     runtime: node
     plan: free
-    rootDir: server
+    rootDir: poker app/server
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
@@ -12,7 +12,7 @@ services:
   - type: web
     name: poker-web
     runtime: static
-    rootDir: app
+    rootDir: poker app/app
     buildCommand: npm install && npx expo export -p web
     staticPublishPath: ./dist
     autoDeployTrigger: commit

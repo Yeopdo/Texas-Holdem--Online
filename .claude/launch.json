@@ -4,7 +4,7 @@
     {
       "name": "poker-server",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
-      "runtimeArgs": ["--prefix", "server", "run", "dev"],
+      "runtimeArgs": ["--prefix", "poker app/server", "run", "dev"],
       "port": 4000
     }
   ]
